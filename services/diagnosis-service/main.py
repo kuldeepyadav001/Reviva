@@ -9,7 +9,7 @@ from reviva_shared.rules import classify_rules
 app = FastAPI(title="reviva-diagnosis")
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:1b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
 
 
 class DiagnoseIn(BaseModel):

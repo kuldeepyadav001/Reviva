@@ -8,7 +8,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://reviva:reviva@postgres:5432/reviva"
     redis_url: str = "redis://redis:6379/0"
     ollama_base_url: str = "http://ollama:11434"
-    ollama_model: str = "llama3.2:1b"
+    ollama_model: str = "qwen2.5:1.5b"
     razorpay_key_id: str = ""
     razorpay_key_secret: str = ""
     razorpay_webhook_secret: str = ""

@@ -29,10 +29,21 @@ cd dashboard && npm install && npm run build
 - UI: **http://localhost:8080/**
 - Health: `curl -s http://localhost:8080/api/ingest/health`
 
-Optional (ambiguous diagnosis):
+Optional (ambiguous diagnosis). Default model: **`qwen2.5:1.5b`**.
+
+If the model is **already on your PC’s Ollama** (not inside Docker), in `.env` set:
+
+```
+OLLAMA_BASE_URL=http://host.docker.internal:11434
+OLLAMA_MODEL=qwen2.5:1.5b
+```
+
+Then recreate: `docker compose up -d --force-recreate diagnosis-service`
+
+If you use the **compose** Ollama container instead:
 
 ```bash
-docker compose exec ollama ollama pull llama3.2:1b
+docker compose exec ollama ollama pull qwen2.5:1.5b
 ```
 
 Click **Run labeled batch**. Open a `send_*_link` row → audit. `stub: false` and `rzp.io` means a real **test** Payment Link.
