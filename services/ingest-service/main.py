@@ -1,0 +1,150 @@
+import json
+import os
+from contextlib import asynccontextmanager
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
+from sqlmodel import Session, SQLModel, create_engine
+from reviva_shared.dedup import DedupStore
+from reviva_shared.health import service_health
+from reviva_shared.hmac_util import verify_razorpay_signature
+from reviva_shared.models import PaymentEvent, utcnow
+from reviva_shared.settings import settings
+
+
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./ingest.db")
+connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+engine_kwargs = {"connect_args": connect_args}
+if DATABASE_URL.startswith("sqlite"):
+    from sqlalchemy.pool import StaticPool
+
+    engine_kwargs["poolclass"] = StaticPool
+engine = create_engine(DATABASE_URL, **engine_kwargs)
+SQLModel.metadata.create_all(engine)
+
+
+class MemoryRedis:
+    def __init__(self):
+        self._d: dict[str, str] = {}
+
+    def set(self, key, val, nx=False, ex=None):
+        if nx and key in self._d:
+            return False
+        self._d[key] = val
+        return True
+
+
+def _redis():
+    url = os.getenv("REDIS_URL", "")
+    if url.startswith("redis://"):
+        try:
+            import redis
+
+            return redis.from_url(url, decode_responses=True)
+        except Exception:
+            return MemoryRedis()
+    return MemoryRedis()
+
+
+dedup = DedupStore(_redis())
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    SQLModel.metadata.create_all(engine)
+    yield
+
+
+app = FastAPI(title="reviva-ingest", lifespan=lifespan)
+
+
+def get_session():
+    with Session(engine) as session:
+        yield session
+
+
+@app.get("/health")
+def health():
+    return service_health("ingest-service")
+
+
+def _customer_ref(entity: dict) -> str:
+    return entity.get("email") or entity.get("contact") or entity.get("id") or "anon"
+
+
+def persist_failed_payload(session: Session, payload: dict, source: str) -> PaymentEvent:
+    entity = payload.get("payload", {}).get("payment", {}).get("entity", payload.get("entity", {}))
+    err = entity.get("error") or {}
+    ev = PaymentEvent(
+        merchant_id=settings.merchant_id,
+        razorpay_payment_id=entity.get("id") or payload.get("payment_id") or "unknown",
+        razorpay_order_id=entity.get("order_id"),
+        event_type=payload.get("event") or "payment.failed",
+        amount_paise=int(entity.get("amount") or payload.get("amount_paise") or 0),
+        currency=entity.get("currency") or "INR",
+        customer_ref=_customer_ref(entity) if entity else payload.get("customer_ref") or "anon",
+        customer_email=entity.get("email") or payload.get("customer_email"),
+        error_code=err.get("code") or entity.get("error_code") or payload.get("error_code"),
+        error_reason=err.get("reason") or entity.get("error_reason") or payload.get("error_reason"),
+        error_description=err.get("description") or entity.get("error_description") or payload.get("error_description"),
+        error_source=err.get("source"),
+        error_step=err.get("step"),
+        payload=payload,
+        source=source,
+        created_at=utcnow(),
+    )
+    session.add(ev)
+    session.commit()
+    session.refresh(ev)
+    return ev
+
+
+@app.post("/webhooks/razorpay")
+async def webhook(
+    request: Request,
+    session: Session = Depends(get_session),
+    x_razorpay_signature: str | None = Header(default=None),
+):
+    body = await request.body()
+    secret = settings.razorpay_webhook_secret
+    if secret and secret != "replace_me":
+        if not verify_razorpay_signature(body, x_razorpay_signature, secret):
+            raise HTTPException(400, "invalid webhook signature")
+    payload = json.loads(body.decode() or "{}")
+    event_type = payload.get("event") or ""
+    entity = payload.get("payload", {}).get("payment", {}).get("entity", {})
+    payment_id = entity.get("id") or "unknown"
+    if not dedup.claim(payment_id, event_type):
+        return {"ok": True, "deduped": True}
+    if event_type not in ("payment.failed", "payment.captured"):
+        return {"ok": True, "ignored": event_type}
+    ev = persist_failed_payload(session, payload, source="webhook")
+    return {"ok": True, "event_id": ev.id, "deduped": False}
+
+
+@app.post("/internal/events")
+def internal_event(payload: dict, session: Session = Depends(get_session)):
+    pid = payload.get("razorpay_payment_id") or payload.get("payment_id") or "sim_unknown"
+    et = payload.get("event") or "payment.failed"
+    if not dedup.claim(pid, et):
+        return {"ok": True, "deduped": True}
+    wrapped = {
+        "event": et,
+        "payload": {
+            "payment": {
+                "entity": {
+                    "id": pid,
+                    "order_id": payload.get("razorpay_order_id"),
+                    "amount": payload.get("amount_paise", 0),
+                    "email": payload.get("customer_email"),
+                    "error": {
+                        "code": payload.get("error_code"),
+                        "reason": payload.get("error_reason"),
+                        "description": payload.get("error_description"),
+                    },
+                }
+            }
+        },
+        **payload,
+    }
+    ev = persist_failed_payload(session, wrapped, source=payload.get("source") or "sim")
+    return {"ok": True, "event_id": ev.id}

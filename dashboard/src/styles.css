@@ -1,0 +1,14 @@
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  background: #0c1117;
+  color: #e8eef6;
+}
+.wrap { padding: 32px; max-width: 960px; }
+h1 { font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; }
+.sub { color: #8b9bb0; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 24px; }
+.card { background: #151c24; border: 1px solid #243041; border-radius: 10px; padding: 16px; }
+.ok { color: #3ddc97; }
+.bad { color: #ff6b6b; }
+code { color: #5b8cff; }
