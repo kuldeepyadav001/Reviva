@@ -4,6 +4,7 @@ import os
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ["REDIS_URL"] = ""
 os.environ["RAZORPAY_WEBHOOK_SECRET"] = "whsec_test"
+os.environ["PIPELINE_ENABLED"] = "false"
 
 from fastapi.testclient import TestClient
 from reviva_shared.hmac_util import razorpay_webhook_signature

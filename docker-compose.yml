@@ -35,6 +35,11 @@ services:
       args:
         SERVICE_DIR: ingest-service
     env_file: .env
+    environment:
+      PIPELINE_ENABLED: "true"
+      DIAGNOSIS_URL: http://diagnosis-service:8000
+      POLICY_URL: http://policy-service:8000
+      EXECUTOR_URL: http://executor-service:8000
     depends_on:
       postgres:
         condition: service_healthy
@@ -48,9 +53,13 @@ services:
       args:
         SERVICE_DIR: simulator-service
     env_file: .env
+    environment:
+      INGEST_URL: http://ingest-service:8000
     depends_on:
       postgres:
         condition: service_healthy
+      ingest-service:
+        condition: service_started
 
   diagnosis-service:
     build:

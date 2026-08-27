@@ -12,3 +12,8 @@ h1 { font-size: 18px; letter-spacing: 0.12em; text-transform: uppercase; }
 .ok { color: #3ddc97; }
 .bad { color: #ff6b6b; }
 code { color: #5b8cff; }
+button { background: #5b8cff; color: #fff; border: 0; border-radius: 8px; padding: 8px 14px; font-weight: 600; cursor: pointer; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+th, td { text-align: left; padding: 6px; border-bottom: 1px solid #243041; }
+tr { cursor: pointer; }
+pre { overflow: auto; font-size: 12px; background: #0a0e13; padding: 12px; border-radius: 8px; }

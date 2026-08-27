@@ -2,16 +2,21 @@
 
 **Updated:** 2026-08-27
 
-## Git workflow (owner lock)
-- Commit on **side branches** (`stage-N-…`)
-- Run full pytest every stage
-- **Do not push** until owner says push
-- Owner merges; never commit straight to `main` for new work
+## Git workflow
+Side branch → pytest → push branch → merge `main` when tests pass.
 
 ## Current
-- `main` on GitHub: `7255de5` (stage 1–2)
-- **Branch:** `stage-3-simulator` (local only)
-- Tests: **12 passed**
+All v1 services implemented. Tests: **34 passed**.
 
-## Next
-Stage 4 — Diagnosis (after owner reviews/merges or says continue)
+`main` after this commit includes:
+- ingest HMAC+dedup+pipeline
+- simulator labeled batch
+- diagnosis rules then Ollama
+- policy stopping rules
+- executor audit + sim ₹
+- React dashboard
+
+Docker not run in this sandbox (no docker binary).
+
+## Next for owner
+`docker compose up --build` on a machine with Docker. Pull `llama3.2:1b`. Fill Razorpay test keys.

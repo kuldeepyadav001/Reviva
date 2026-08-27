@@ -2,6 +2,7 @@ import json
 import os
 from contextlib import asynccontextmanager
 
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlmodel import Session, SQLModel, create_engine
 from reviva_shared.dedup import DedupStore
@@ -46,6 +47,56 @@ def _redis():
 
 
 dedup = DedupStore(_redis())
+PIPELINE_ENABLED = os.getenv("PIPELINE_ENABLED", "true").lower() != "false"
+DIAGNOSIS_URL = os.getenv("DIAGNOSIS_URL", "http://diagnosis-service:8000")
+POLICY_URL = os.getenv("POLICY_URL", "http://policy-service:8000")
+EXECUTOR_URL = os.getenv("EXECUTOR_URL", "http://executor-service:8000")
+
+
+def run_pipeline(ev: PaymentEvent) -> dict:
+    if not PIPELINE_ENABLED or ev.event_type != "payment.failed":
+        return {}
+    with httpx.Client(timeout=20.0) as client:
+        d = client.post(
+            f"{DIAGNOSIS_URL}/diagnose",
+            json={
+                "error_reason": ev.error_reason,
+                "error_code": ev.error_code,
+                "error_description": ev.error_description,
+                "event_type": ev.event_type,
+            },
+        )
+        d.raise_for_status()
+        diagnosis = d.json()
+        p = client.post(
+            f"{POLICY_URL}/decide",
+            json={
+                "merchant_id": ev.merchant_id,
+                "customer_ref": ev.customer_ref,
+                "amount_paise": ev.amount_paise,
+                "root_cause": diagnosis["root_cause"],
+            },
+        )
+        p.raise_for_status()
+        decision = p.json()
+        e = client.post(
+            f"{EXECUTOR_URL}/execute",
+            json={
+                "event_id": ev.id,
+                "payment_id": ev.razorpay_payment_id,
+                "customer_ref": ev.customer_ref,
+                "amount_paise": ev.amount_paise,
+                "action_type": decision["action_type"],
+                "status": decision["status"],
+                "block_reason": decision.get("block_reason"),
+                "decision_source": diagnosis.get("decision_source", ""),
+                "playbook": decision.get("playbook", ""),
+                "customer_email": ev.customer_email,
+                "source": ev.source,
+            },
+        )
+        e.raise_for_status()
+        return {"diagnosis": diagnosis, "decision": decision, "execution": e.json()}
 
 
 @asynccontextmanager
@@ -147,4 +198,9 @@ def internal_event(payload: dict, session: Session = Depends(get_session)):
         **payload,
     }
     ev = persist_failed_payload(session, wrapped, source=payload.get("source") or "sim")
-    return {"ok": True, "event_id": ev.id}
+    pipe = {}
+    try:
+        pipe = run_pipeline(ev)
+    except Exception as exc:
+        pipe = {"pipeline_error": str(exc)[:300]}
+    return {"ok": True, "event_id": ev.id, "pipeline": pipe}
