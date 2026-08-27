@@ -18,7 +18,7 @@ cd dashboard && npm install && npm run build
 # nginx serves dashboard/dist
 ```
 
-- UI: http://localhost/
+- UI: http://localhost:8080/
 - Ingest webhook: `POST /api/ingest/webhooks/razorpay`
 - Batch: `POST /api/simulator/run-batch?n=100`
 

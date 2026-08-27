@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from reviva_shared.db_init import init_db
 from reviva_shared.gates import bump_attempt, mark_link, MemoryRedis
 from reviva_shared.health import service_health
 from reviva_shared.models import AuditLog, Recovery, RecoveryAction, utcnow
@@ -17,14 +18,14 @@ kwargs = {"connect_args": connect_args}
 if DATABASE_URL.startswith("sqlite"):
     kwargs["poolclass"] = StaticPool
 engine = create_engine(DATABASE_URL, **kwargs)
-SQLModel.metadata.create_all(engine)
+init_db(engine)
 
 _redis = MemoryRedis()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    SQLModel.metadata.create_all(engine)
+    init_db(engine)
     yield
 
 

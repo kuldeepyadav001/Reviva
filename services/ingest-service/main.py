@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from sqlmodel import Session, SQLModel, create_engine
+from reviva_shared.db_init import init_db
 from reviva_shared.dedup import DedupStore
 from reviva_shared.health import service_health
 from reviva_shared.hmac_util import verify_razorpay_signature
@@ -20,7 +21,7 @@ if DATABASE_URL.startswith("sqlite"):
 
     engine_kwargs["poolclass"] = StaticPool
 engine = create_engine(DATABASE_URL, **engine_kwargs)
-SQLModel.metadata.create_all(engine)
+init_db(engine)
 
 
 class MemoryRedis:
@@ -101,7 +102,7 @@ def run_pipeline(ev: PaymentEvent) -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    SQLModel.metadata.create_all(engine)
+    init_db(engine)
     yield
 
 
@@ -169,7 +170,13 @@ async def webhook(
     if event_type not in ("payment.failed", "payment.captured"):
         return {"ok": True, "ignored": event_type}
     ev = persist_failed_payload(session, payload, source="webhook")
-    return {"ok": True, "event_id": ev.id, "deduped": False}
+    pipe = {}
+    if ev.event_type == "payment.failed":
+        try:
+            pipe = run_pipeline(ev)
+        except Exception as exc:
+            pipe = {"pipeline_error": str(exc)[:300]}
+    return {"ok": True, "event_id": ev.id, "deduped": False, "pipeline": pipe}
 
 
 @app.post("/internal/events")
