@@ -1,99 +1,136 @@
 # Reviva
 
-Bounded **payment-failure recovery** for Razorpay (test mode).
+**Bounded recovery for failed Razorpay payments.**
 
-Detect → diagnose (rules first, local LLM only if unknown) → gated intervention → execute + audit → measure.
+When a payment fails, most Indian customers never retry. Blind retries make it worse (down bank, empty balance, spam). Reviva **names the cause**, applies **hard stopping rules**, and only then talks to Razorpay — with an audit trail you can click.
 
-If the story is unclear, read **[docs/HOW_REVIVA_WORKS.md](docs/HOW_REVIVA_WORKS.md)** first.
+> Narrative of the whole loop (webhooks vs Payment Links vs sim ₹): **[docs/HOW_REVIVA_WORKS.md](docs/HOW_REVIVA_WORKS.md)**
 
-## What problem it solves
+[![tests](https://github.com/kuldeepyadav001/Reviva/actions/workflows/test.yml/badge.svg)](https://github.com/kuldeepyadav001/Reviva/actions/workflows/test.yml)
 
-Failed Razorpay payments leak merchant GMV. Blind retries make it worse (down bank, no funds, spam). Reviva names the **cause**, applies **stopping rules**, creates a **test Payment Link** only when that is the right move, and keeps an audit trail.
+---
 
-## Quick start
+## Why it exists
+
+| Failure | Wrong move | Reviva |
+|---|---|---|
+| Issuer / switch down | Retry now | Backoff schedule |
+| Insufficient funds | Retry now | Later window |
+| 3DS / UPI PIN | Silent debit | **New** Payment Link (test) |
+| Customer walked away | Email blast | **One** reminder, then stop |
+| Amount &gt; ₹10,000 | Auto-send | Pending approval |
+
+LLM classifies **only unknown payloads**. Known `error.reason` values never hit the model.
+
+---
+
+## Architecture
+
+```
+                    ┌─────────────┐
+   labeled batch    │  simulator  │
+                    └──────┬──────┘
+                           ▼
+┌─────────┐  HMAC/dedup  ┌─────────┐  rules→LLM  ┌───────────┐
+│ Razorpay│─────────────►│ ingest  │────────────►│ diagnosis │
+│ webhook │   (optional) └────┬────┘             └─────┬─────┘
+└─────────┘                   │                        ▼
+                              │                  ┌──────────┐
+                              │                  │  policy  │  gates
+                              │                  └────┬─────┘
+                              ▼                       ▼
+                       ┌────────────┐    ┌─────────────────────┐
+                       │  dashboard │◄───│     executor        │
+                       │  (React)   │    │  Payment Links test │
+                       └────────────┘    │  append-only audit  │
+                                         └─────────────────────┘
+postgres · redis · nginx :8080 · ollama (qwen2.5:1.5b)
+```
+
+Six FastAPI services on Docker Compose. Same shape as a real payments sidecar — not a notebook.
+
+---
+
+## Run locally
+
+Needs Docker Desktop + Node (dashboard build).
 
 ```bash
 git clone https://github.com/kuldeepyadav001/Reviva.git
 cd Reviva
 cp .env.example .env
-# set RAZORPAY_KEY_ID and RAZORPAY_KEY_SECRET (TEST keys)
+# RAZORPAY_KEY_ID / RAZORPAY_KEY_SECRET = TEST keys (rzp_test_…)
 docker compose up --build
 ```
-
-Other terminal:
 
 ```bash
 cd dashboard && npm install && npm run build
 ```
 
-- UI: **http://localhost:8080/**
-- Health: `curl -s http://localhost:8080/api/ingest/health`
+Open **http://localhost:8080/** → **Run labeled batch**.
 
-Optional (ambiguous diagnosis). Default model: **`qwen2.5:1.5b`**.
+Webhook URL is **not** required for the demo. Simulator injects `payment.failed`.
 
-If the model is **already on your PC’s Ollama** (not inside Docker), in `.env` set:
-
-```
-OLLAMA_BASE_URL=http://host.docker.internal:11434
-OLLAMA_MODEL=qwen2.5:1.5b
-```
-
-Then recreate: `docker compose up -d --force-recreate diagnosis-service`
-
-If you use the **compose** Ollama container instead:
+Ollama model (inside *this* compose project, not another app’s container):
 
 ```bash
 docker compose exec ollama ollama pull qwen2.5:1.5b
 ```
 
-Click **Run labeled batch**. Open a `send_*_link` row → audit. `stub: false` and `rzp.io` means a real **test** Payment Link.
+---
 
-You do **not** need a Razorpay webhook URL for this path. The simulator injects failures.
+## What a reviewer should click
 
-## Architecture
+1. All five health cards green.  
+2. Batch of 20: mix of `schedule_retry_*`, `send_payment_link`, `pending_approval` (₹10k), maybe `manual_review`.  
+3. An executed link row → audit JSON with `decision_source` like `rule:R_AUTH` and, if keys are set, `"stub": false` + `rzp.io` test checkout.  
+4. ₹ on the dashboard is **seeded simulation**. The checkout page is real **test** Razorpay. Don’t confuse the two.
 
-```
-simulator ──► ingest ──► diagnosis ──► policy ──► executor ──► Razorpay Payment Links (test)
-                 │                                              └── audit_log + metrics
-                 └── dashboard (React) via nginx :8080
-postgres · redis · ollama
-```
+---
 
-Six FastAPI services. Shared models in `packages/shared`.
+## Stopping rules (compliance)
 
-| Service | Role |
-|---|---|
-| ingest-service | HMAC webhooks + Redis dedup + sim ingest + pipeline kick |
-| simulator-service | Labeled batch (40% NSF / 25% bank / 20% auth / 15% abandon) |
-| diagnosis-service | Razorpay reason map, then Ollama JSON |
-| policy-service | Playbooks + IST quiet hours, 3/day, dup-link, ₹10k, kill switch |
-| executor-service | Payment Links + append-only audit + seeded ₹ (labeled sim) |
-| dashboard | Operator console |
-
-## Stopping rules (non-negotiable)
-
-- Max 3 recovery attempts per customer per IST day  
+- 3 attempts / customer / IST day  
 - Quiet hours 21:00–09:00 IST  
 - Duplicate Payment Link guard  
-- Amount &gt; ₹10,000 → pending approval  
+- &gt; ₹10,000 → approval  
 - Merchant kill-switch  
-- No SMS; no email to `*.test` sim addresses  
+- No SMS; no mail to `*.test` simulator addresses  
+
+---
 
 ## Tests
 
 ```bash
-pip install -e packages/shared pytest httpx respx fastapi sqlmodel
+pip install -e packages/shared pytest httpx respx fastapi sqlmodel pydantic-settings
 pytest tests -q
 ```
 
-## Honest metrics
+CI runs the same suite on every push to `main`.
 
-Dashboard **₹ recovered** is **seeded simulation** unless you later wire `payment.captured`. The Payment Link on Razorpay’s page is real **test** checkout. Do not present sim ₹ as live GMV.
+---
 
-## Env (names only)
+## Repo map
 
-See `.env.example`. Never commit `.env`.
+```
+services/ingest-service      webhooks, dedup, pipeline
+services/simulator-service   labeled evaluation harness
+services/diagnosis-service   rules then Ollama
+services/policy-service      playbooks + gates
+services/executor-service    Razorpay + audit
+packages/shared              models, HMAC, policy, Razorpay client
+dashboard                    React operator UI
+docs/HOW_REVIVA_WORKS.md     long explainer
+tests/                       pytest
+```
 
-## License
+---
 
-Use as a student / demo project. Test mode only unless you explicitly change that.
+## Honest limitations
+
+- Test mode. No live money.  
+- Sim ₹ ≠ captured GMV.  
+- Public webhook (ngrok) not required for clone-and-run.  
+- Schema bootstrap is `create_all` with a race retry — fine for demo, not a migration product.
+
+MIT © Kuldeep Yadav
