@@ -10,7 +10,40 @@ When a payment fails, most Indian customers never retry. Blind retries make it w
 
 ---
 
-## Why it exists
+## The money problem (why this is not a toy)
+
+Figures below are **industry / Razorpay-published research** used to size the problem. They are **not** Reviva’s live GMV. The dashboard ₹ is a **labeled simulation** so we can measure the agent, not a claim of production lift.
+
+| Signal | Number | So what |
+|---|---|---|
+| Cart abandon caused by **payment failure** (India) | **~70%** | The cart is not “I don’t want it.” The **rail failed**. |
+| Customers who **never retry** after **one** fail | **~70%** | One bad attempt ≈ lost order. Recovery has to happen **for** them. |
+| Failures that are **bank / core-banking downtime** (peaks, legacy) | **~40%** | Instant retry hits the same down issuer. Need **backoff**. |
+| Failures that are **user drop-off** | **~30%** | At most **one** reminder. More is spam. |
+| Rest (auth, NSF, blocked instrument) | **~30%** | Each needs a **different** playbook, not one retry clock. |
+| Well-designed **soft vs hard** retry | **15–20%** of failed txns recovered, **+3–5 pts** success rate | Only if NSF is not treated like timeout. |
+| Stuck **UPI pending** | **~15%** of UPI; merchants lose **~40%** of that slice | Pending ≠ failed ≠ paid. Don’t lie to the merchant. |
+
+**Merchant math (same brief):** ₹50 lakh/month attempted volume, **10%** margin, a **20-point** success-rate gap ≈ **₹1,00,000/month margin gone**. A **1-point** success drop costs on the order of **10×** a **0.1%** fee difference. Reliability beats shaving MDR.
+
+RBI operational-resilience guidance (2024) makes “we retried blindly” a **compliance** issue, not just a conversion one.
+
+### How Reviva turns those percentages into a system
+
+| Mix we simulate (eval batch) | Policy |
+|---|---|
+| **40%** insufficient funds | Retry at a **balance window**, not now |
+| **25%** bank downtime | **Exponential backoff** — never instant |
+| **20%** auth failure | **Fresh** Razorpay Payment Link (new 3DS/UPI session) |
+| **15%** abandonment | **Exactly one** reminder link, then **stop** |
+
+Plus gates: 3 attempts/customer/IST day, quiet hours 21:00–09:00 IST, duplicate-link guard, **> ₹10,000** manual approval, merchant kill-switch. That is how 15–20% recovery stays **defensible** instead of becoming offense.
+
+If this ran on a real ₹50L attempt book and even **1 point** of success came back, the brief’s own math says that can dwarf fee shopping. Reviva’s job is to make that lift **auditable** (rule id or LLM JSON on every row).
+
+---
+
+## Why the playbooks differ
 
 | Failure | Wrong move | Reviva |
 |---|---|---|
