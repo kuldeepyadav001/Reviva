@@ -1,7 +1,8 @@
 # Outstanding tasks
 
-- [x] Stage 1 foundation
-- [x] Stage 2 ingest + tests
-- [x] Stage 3 simulator + tests (this branch)
-- [ ] Owner: review `stage-3-simulator`, then say **push** or **merge**
-- [ ] Stage 4 diagnosis
+- [x] Stages 1–6 services + tests
+- [x] Pipeline ingest → diagnosis → policy → executor
+- [x] React dashboard metrics/audit
+- [ ] Owner: `docker compose up` (not possible in build sandbox)
+- [ ] Real Razorpay test Payment Link (stub id today if keys missing)
+- [ ] Pitch video / form (owner)
