@@ -10,6 +10,7 @@ from reviva_shared.db_init import init_db
 from reviva_shared.gates import bump_attempt, mark_link, MemoryRedis
 from reviva_shared.health import service_health
 from reviva_shared.models import AuditLog, Recovery, RecoveryAction, utcnow
+from reviva_shared.razorpay_links import create_payment_link
 from reviva_shared.recovery_sim import seeded_recover
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./executor.db")
@@ -67,12 +68,20 @@ def execute(body: ExecuteIn):
             amount_paise=body.amount_paise,
             created_at=utcnow(),
         )
+        extra_link: dict = {}
         if body.status == "execute" and body.action_type in (
             "send_payment_link",
             "send_single_reminder_link",
         ):
             action.status = "executed"
-            action.razorpay_ref = f"plink_stub_{body.payment_id}"
+            link = create_payment_link(
+                body.amount_paise,
+                body.payment_id,
+                body.customer_email,
+                f"Reviva recovery for {body.payment_id}",
+            )
+            action.razorpay_ref = link.get("id")
+            extra_link = link
             mark_link(_redis, body.customer_ref, body.amount_paise)
             bump_attempt(_redis, body.customer_ref)
         elif body.status == "scheduled":
@@ -90,7 +99,7 @@ def execute(body: ExecuteIn):
             reason=body.block_reason or body.playbook,
             amount_paise=body.amount_paise,
             outcome=action.status,
-            extra={"playbook": body.playbook, "razorpay_ref": action.razorpay_ref},
+            extra={"playbook": body.playbook, "razorpay_ref": action.razorpay_ref, "link": extra_link},
             created_at=utcnow(),
         )
         session.add(audit)
