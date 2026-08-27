@@ -8,14 +8,9 @@ os.environ["RAZORPAY_WEBHOOK_SECRET"] = "whsec_test"
 from fastapi.testclient import TestClient
 from reviva_shared.hmac_util import razorpay_webhook_signature
 
-# import after env
-from importlib import import_module
-import sys
-from pathlib import Path
+from tests.conftest import load_service
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "services" / "ingest-service"))
-import main as ingest  # noqa: E402
-
+ingest = load_service("ingest-service")
 client = TestClient(ingest.app)
 
 FAILED = {

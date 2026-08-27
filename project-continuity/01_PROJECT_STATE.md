@@ -2,17 +2,16 @@
 
 **Updated:** 2026-08-27
 
-## Current stage
-**Stage 2 ingest implemented + tests green (7 passed).**  
-React dashboard built to `dashboard/dist`.
+## Git workflow (owner lock)
+- Commit on **side branches** (`stage-N-…`)
+- Run full pytest every stage
+- **Do not push** until owner says push
+- Owner merges; never commit straight to `main` for new work
 
-**Next stage:** 3 — Simulator (labeled batch → ingest `/internal/events`)
+## Current
+- `main` on GitHub: `7255de5` (stage 1–2)
+- **Branch:** `stage-3-simulator` (local only)
+- Tests: **12 passed**
 
-## Verify
-```
-cd /home/user/reviva && pytest tests -q
-```
-Docker still missing in this sandbox.
-
-## Git
-SSH key generated at `~/.ssh/id_ed25519_reviva` (deploy). Public key to add as GitHub deploy key.
+## Next
+Stage 4 — Diagnosis (after owner reviews/merges or says continue)
