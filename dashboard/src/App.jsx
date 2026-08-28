@@ -82,7 +82,7 @@ export default function App() {
   const [filter, setFilter] = useState("all");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [n, setN] = useState(20);
+  const [batchSize, setBatchSize] = useState(20);
   const [frozen, setFrozen] = useState(false);
   const [lastBatch, setLastBatch] = useState(null);
 
@@ -130,7 +130,7 @@ export default function App() {
     setBusy(true);
     setErr("");
     try {
-      const r = await fetch(`/api/simulator/run-batch?n=${n}`, { method: "POST" });
+      const r = await fetch(`/api/simulator/run-batch?n=${batchSize}`, { method: "POST" });
       if (!r.ok) {
         const t = await r.text();
         throw new Error(`Could not run batch (${r.status}). ${t.slice(0, 160)}`);
@@ -176,7 +176,7 @@ export default function App() {
           Services
         </button>
         <span>
-          {SERVICES.filter(([n]) => status[n]?.ok).length}/{SERVICES.length} live · test mode
+          {SERVICES.filter(([name]) => status[name]?.ok).length}/{SERVICES.length} live · test mode
         </span>
       </nav>
 
@@ -300,12 +300,12 @@ export default function App() {
             </p>
             <div className="toolbar">
               <button className="primary" type="button" onClick={runBatch} disabled={busy}>
-                {busy ? "Running…" : `Practice batch (${n})`}
+                {busy ? "Running…" : `Practice batch (${batchSize})`}
               </button>
-              <button type="button" onClick={() => setN(20)}>
+              <button type="button" onClick={() => setBatchSize(20)}>
                 20
               </button>
-              <button type="button" onClick={() => setN(100)}>
+              <button type="button" onClick={() => setBatchSize(100)}>
                 100
               </button>
               {!frozen && (
