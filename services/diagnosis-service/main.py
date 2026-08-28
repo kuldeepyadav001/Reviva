@@ -3,6 +3,7 @@ import os
 from fastapi import FastAPI
 from pydantic import BaseModel
 from reviva_shared.health import service_health
+from reviva_shared.human import source_text
 from reviva_shared.llm_classify import classify_llm
 from reviva_shared.rules import classify_rules
 
@@ -42,4 +43,5 @@ async def diagnose(body: DiagnoseIn):
         "decision_source": source,
         "reasoning": hit.reasoning,
         "used_llm": used_llm,
+        "human": source_text(source),
     }
