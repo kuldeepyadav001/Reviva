@@ -1,5 +1,7 @@
 """Labeled failure mix for the evaluation harness. Not live traffic."""
 
+import uuid
+
 CAUSES = (
     ("insufficient_funds", 40, "insufficient_funds", "Payment failed due to insufficient funds"),
     ("bank_downtime", 25, "gateway_error", "Issuer bank is down (U28)"),
@@ -11,6 +13,7 @@ CAUSES = (
 def build_specs(n: int = 100) -> list[dict]:
     specs: list[dict] = []
     i = 0
+    run = uuid.uuid4().hex[:10]
     for cause, pct, reason, desc in CAUSES:
         count = round(n * pct / 100)
         for _ in range(count):
@@ -23,8 +26,8 @@ def build_specs(n: int = 100) -> list[dict]:
                     "error_description": "unclear gateway response code ZX-99" if ambiguous else desc,
                     "error_code": "UNKNOWN" if ambiguous else "BAD_REQUEST_ERROR",
                     "amount_paise": 1_200_000 if i == 3 else 49900 + (i * 100) % 200000,
-                    "customer_email": f"c{i}@example.test",
-                    "razorpay_payment_id": f"pay_sim_{i:04d}",
+                    "customer_email": f"c{i}-{run}@example.test",
+                    "razorpay_payment_id": f"pay_sim_{run}_{i:04d}",
                 }
             )
     return specs[:n]

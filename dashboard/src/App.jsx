@@ -82,7 +82,8 @@ export default function App() {
   const [filter, setFilter] = useState("all");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [n, setN] = useState(20);
+  const [frozen, setFrozen] = useState(false);
+  const [lastBatch, setLastBatch] = useState(null);
 
   const refresh = () => {
     SERVICES.forEach(([name, path]) => {
@@ -98,6 +99,10 @@ export default function App() {
     fetch("/api/executor/actions")
       .then((r) => r.json())
       .then((rows) => setActions(Array.isArray(rows) ? rows : []))
+      .catch(() => {});
+    fetch("/api/policy/ops/kill-switch")
+      .then((r) => r.json())
+      .then((j) => setFrozen(Boolean(j.kill_switch)))
       .catch(() => {});
   };
 
@@ -129,6 +134,8 @@ export default function App() {
         const t = await r.text();
         throw new Error(`Could not run batch (${r.status}). ${t.slice(0, 160)}`);
       }
+      const body = await r.json();
+      setLastBatch(body);
       await refresh();
       setPage("ledger");
     } catch (e) {
@@ -271,7 +278,25 @@ export default function App() {
             </div>
           </div>
 
+          {frozen && (
+            <div className="glass" style={{ borderColor: "#ff8b8b", marginBottom: 12 }}>
+              <h2 className="warn">Agent is frozen</h2>
+              <p>
+                You pressed freeze (kill switch). Every new failure is <b>stopped</b> — no Payment
+                Link, no retry. That is why recent rows all say stopped. Unfreeze to recover again.
+              </p>
+              <button className="primary" type="button" onClick={() => kill(false)}>
+                Unfreeze — allow recovery
+              </button>
+            </div>
+          )}
+
           <div className="glass">
+            <p className="k">
+              Freeze = emergency stop for the whole merchant (like pulling the plug). Leave it off
+              unless you are demoing a stop. Ledger count is every action ever; a batch that reuses
+              the same fake payment ids is ignored (dedup). New batches now get unique ids.
+            </p>
             <div className="toolbar">
               <button className="primary" type="button" onClick={runBatch} disabled={busy}>
                 {busy ? "Running…" : `Practice batch (${n})`}
@@ -282,13 +307,18 @@ export default function App() {
               <button type="button" onClick={() => setN(100)}>
                 100
               </button>
-              <button type="button" onClick={() => kill(true)}>
-                Freeze agent
-              </button>
-              <button type="button" onClick={() => kill(false)}>
-                Unfreeze
-              </button>
+              {!frozen && (
+                <button type="button" onClick={() => kill(true)}>
+                  Emergency freeze
+                </button>
+              )}
             </div>
+            {lastBatch && (
+              <p className="k">
+                Last batch: {lastBatch.batch} events ingested. Scroll the ledger — newest at the
+                top (#{actions.length || "…"}).
+              </p>
+            )}
             {err && <p className="bad">{err}</p>}
           </div>
 

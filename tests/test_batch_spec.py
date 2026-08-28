@@ -21,3 +21,9 @@ def test_high_value_row_exists():
 def test_some_ambiguous_for_llm_path():
     specs = build_specs(100)
     assert any(s["error_reason"] is None for s in specs)
+
+
+def test_each_run_has_unique_payment_ids():
+    a = {s["razorpay_payment_id"] for s in build_specs(20)}
+    b = {s["razorpay_payment_id"] for s in build_specs(20)}
+    assert a.isdisjoint(b)

@@ -50,6 +50,12 @@ def decide_ep(body: DecideIn):
     }
 
 
+@app.get("/ops/kill-switch")
+def kill_get(merchant_id: str = "merch_local_1"):
+    on = _redis.get(f"kill:{merchant_id}") == "1"
+    return {"kill_switch": on, "human": "Agent is frozen. No customer will be contacted." if on else "Agent is live."}
+
+
 @app.post("/ops/kill-switch")
 def kill(on: bool = True, merchant_id: str = "merch_local_1"):
     _redis.set(f"kill:{merchant_id}", "1" if on else "0")
