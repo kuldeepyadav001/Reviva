@@ -25,7 +25,16 @@ services:
     image: ollama/ollama:latest
     volumes:
       - ollama:/root/.ollama
-    # Do not publish 11434 — host often already has another Ollama. Diagnosis uses http://ollama:11434 on the compose network.
+    # Internal only. Other projects may already own host :11434.
+
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "qwen2.5:1.5b"]
+    restart: "no"
 
   ingest-service:
     build:
@@ -67,8 +76,14 @@ services:
       args:
         SERVICE_DIR: diagnosis-service
     env_file: .env
+    environment:
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: qwen2.5:1.5b
     depends_on:
-      - ollama
+      ollama:
+        condition: service_started
+      ollama-pull:
+        condition: service_completed_successfully
 
   policy-service:
     build:
