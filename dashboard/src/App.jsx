@@ -82,6 +82,7 @@ export default function App() {
   const [filter, setFilter] = useState("all");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [n, setN] = useState(20);
   const [frozen, setFrozen] = useState(false);
   const [lastBatch, setLastBatch] = useState(null);
 
