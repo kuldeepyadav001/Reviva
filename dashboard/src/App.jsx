@@ -82,7 +82,10 @@ export default function App() {
     setErr("");
     try {
       const r = await fetch(`/api/simulator/run-batch?n=${n}`, { method: "POST" });
-      if (!r.ok) throw new Error(`batch ${r.status}`);
+      if (!r.ok) {
+        const t = await r.text();
+        throw new Error(`batch ${r.status} ${t.slice(0, 120)}`);
+      }
       await refresh();
     } catch (e) {
       setErr(String(e.message || e));

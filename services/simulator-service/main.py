@@ -36,6 +36,8 @@ def post_event(client: httpx.Client, spec: dict) -> dict:
 
 
 @app.post("/run-batch")
+@app.post("/run-batch/")
+@app.post("/api/simulator/run-batch")
 def run_batch(n: int = 100):
     if n < 1 or n > 500:
         raise HTTPException(400, "n must be 1..500")
