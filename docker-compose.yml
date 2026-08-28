@@ -25,8 +25,7 @@ services:
     image: ollama/ollama:latest
     volumes:
       - ollama:/root/.ollama
-    ports:
-      - "11434:11434"
+    # Do not publish 11434 — host often already has another Ollama. Diagnosis uses http://ollama:11434 on the compose network.
 
   ingest-service:
     build:
