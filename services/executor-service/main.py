@@ -14,6 +14,7 @@ from reviva_shared.health import service_health
 from reviva_shared.models import AuditLog, Recovery, RecoveryAction, utcnow
 from reviva_shared.razorpay_links import create_payment_link
 from reviva_shared.recovery_sim import seeded_recover
+from reviva_shared.wipe import wipe_ledger
 
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./executor.db")
 connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
@@ -179,8 +180,5 @@ def actions():
 @app.post("/ops/clear")
 def clear_ops():
     with Session(engine) as session:
-        for model in (AuditLog, Recovery, RecoveryAction):
-            for row in session.exec(select(model)).all():
-                session.delete(row)
-        session.commit()
-    return {"ok": True, "cleared": "executor"}
+        wipe_ledger(session, engine)
+    return {"ok": True, "cleared": "all", "ids_reset": True}

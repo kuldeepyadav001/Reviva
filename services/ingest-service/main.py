@@ -124,13 +124,16 @@ def health():
 
 @app.post("/ops/clear")
 def clear_events(session: Session = Depends(get_session)):
-    from sqlmodel import select as sel
-    from reviva_shared.models import PaymentEvent
+    from reviva_shared.wipe import wipe_ledger
 
-    for row in session.exec(sel(PaymentEvent)).all():
-        session.delete(row)
-    session.commit()
-    return {"ok": True, "cleared": "events"}
+    wipe_ledger(session, engine)
+    client = _redis()
+    if hasattr(client, "flushdb"):
+        try:
+            client.flushdb()
+        except Exception:
+            pass
+    return {"ok": True, "cleared": "events", "ids_reset": True}
 
 
 def _customer_ref(entity: dict) -> str:

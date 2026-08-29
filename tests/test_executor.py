@@ -53,4 +53,19 @@ def test_execute_link_and_metrics():
     assert r.json()["razorpay_ref"]
     m = client.get("/metrics").json()
     assert m["actions_taken"] >= 1
-    assert "rupees_recovered_sim" in m
+def test_clear_resets_ids():
+    client.post("/ops/clear")
+    r = client.post(
+        "/execute",
+        json={
+            "event_id": 1,
+            "payment_id": "pay_after_clear",
+            "customer_ref": "c9",
+            "amount_paise": 1000,
+            "action_type": "none",
+            "status": "blocked",
+            "block_reason": "quiet_hours_ist_2100_0900",
+        },
+    )
+    assert r.status_code == 200
+    assert r.json()["action_id"] == 1

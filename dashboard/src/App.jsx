@@ -161,6 +161,7 @@ export default function App() {
     setAudit([]);
     setSel(null);
     setLastBatch(null);
+    setPageIdx(0);
     refresh();
   };
 
