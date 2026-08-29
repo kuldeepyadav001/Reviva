@@ -171,4 +171,16 @@ def audit_chain(event_id: int):
 @app.get("/actions")
 def actions():
     with Session(engine) as session:
-        return session.exec(select(RecoveryAction)).all()
+        return session.exec(
+            select(RecoveryAction).order_by(RecoveryAction.id.desc()).limit(250)
+        ).all()
+
+
+@app.post("/ops/clear")
+def clear_ops():
+    with Session(engine) as session:
+        for model in (AuditLog, Recovery, RecoveryAction):
+            for row in session.exec(select(model)).all():
+                session.delete(row)
+        session.commit()
+    return {"ok": True, "cleared": "executor"}

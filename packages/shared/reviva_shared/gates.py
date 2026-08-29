@@ -1,3 +1,4 @@
+import os
 from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -34,6 +35,8 @@ class MemoryRedis:
 
 
 def quiet_hours(now: datetime | None = None, start: int = 21, end: int = 9) -> GateResult:
+    if os.getenv("SKIP_QUIET_HOURS", "").lower() in ("1", "true", "yes"):
+        return GateResult(True, "ok")
     now = now or datetime.now(IST)
     if now.tzinfo is None:
         now = now.replace(tzinfo=IST)

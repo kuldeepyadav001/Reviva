@@ -100,7 +100,15 @@ docker compose up --build
 cd dashboard && npm install && npm run build
 ```
 
-Open **http://localhost:8080/** → **Run labeled batch**.
+Open **http://localhost:8080/** after `npm run build`.
+
+**Hot reload (optional):** keep Compose running, then:
+
+```bash
+cd dashboard && npm run dev
+```
+
+Vite is on **http://localhost:5173** and proxies `/api` to nginx `:8080`. Use this while editing UI. Recruiters/clone-and-run still use port **8080**.
 
 Webhook URL is **not** required for the demo. Simulator injects `payment.failed`.
 

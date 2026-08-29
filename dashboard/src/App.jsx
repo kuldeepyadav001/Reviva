@@ -153,6 +153,17 @@ export default function App() {
     refresh();
   };
 
+  const clearLogs = async () => {
+    if (!window.confirm("Delete all practice rows and audit trails on this machine?")) return;
+    await fetch("/api/executor/ops/clear", { method: "POST" });
+    await fetch("/api/ingest/ops/clear", { method: "POST" });
+    setActions([]);
+    setAudit([]);
+    setSel(null);
+    setLastBatch(null);
+    refresh();
+  };
+
   const rows = useMemo(() => {
     const list = [...actions];
     if (filter === "all") return list;
@@ -171,21 +182,19 @@ export default function App() {
   const whyGate = sel?.block_reason ? GATES[sel.block_reason] || extra.playbook : extra.playbook;
 
   return (
-    <>
-      <nav className="nav">
-        <button type="button" className="chip" onClick={() => setPage("story")}>
-          Why
-        </button>
-        <button type="button" className="chip on" onClick={() => setPage("ledger")}>
-          Ledger
-        </button>
-        <button type="button" className="chip" onClick={() => setPage("mesh")}>
-          Services
-        </button>
-        <span>
-          {SERVICES.filter(([name]) => status[name]?.ok).length}/{SERVICES.length} live · test mode
-        </span>
-      </nav>
+    <div className="shell">
+      <aside className="sidebar">
+        <div className="brand">Reviva</div>
+        <button type="button" className={page === "ledger" ? "navbtn on" : "navbtn"} onClick={() => setPage("ledger")}>Dashboard</button>
+        <button type="button" className={page === "story" ? "navbtn on" : "navbtn"} onClick={() => setPage("story")}>Why it exists</button>
+        <button type="button" className={page === "mesh" ? "navbtn on" : "navbtn"} onClick={() => setPage("mesh")}>Services</button>
+        <button type="button" className="navbtn danger" onClick={clearLogs}>Clear ledger</button>
+        <div className="sidefoot">{SERVICES.filter(([name]) => status[name]?.ok).length}/{SERVICES.length} live · test</div>
+      </aside>
+      <div className="maincol">
+      <header className="topbar">
+        <span className="k">{frozen ? "Agent frozen" : "Agent live"} · quiet hours 9pm–9am IST are real policy</span>
+      </header>
 
       {page === "story" && (
         <header className="hero">
@@ -462,6 +471,7 @@ export default function App() {
           </div>
         </div>
       )}
-    </>
+      </div>
+    </div>
   );
 }
