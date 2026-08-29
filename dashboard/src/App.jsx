@@ -154,9 +154,13 @@ export default function App() {
   };
 
   const clearLogs = async () => {
-    if (!window.confirm("Delete all practice rows and audit trails on this machine?")) return;
-    await fetch("/api/executor/ops/clear", { method: "POST" });
-    await fetch("/api/ingest/ops/clear", { method: "POST" });
+    if (!window.confirm("Delete all practice rows and reset IDs to 1?")) return;
+    const a = await fetch("/api/executor/ops/clear", { method: "POST" });
+    const b = await fetch("/api/ingest/ops/clear", { method: "POST" });
+    if (!a.ok || !b.ok) {
+      window.alert("Clear failed. Rebuild executor/ingest (docker compose up -d --build).");
+      return;
+    }
     setActions([]);
     setAudit([]);
     setSel(null);
