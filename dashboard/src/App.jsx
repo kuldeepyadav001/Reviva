@@ -80,6 +80,7 @@ export default function App() {
   const [audit, setAudit] = useState([]);
   const [sel, setSel] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [pageIdx, setPageIdx] = useState(0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [batchSize, setBatchSize] = useState(20);
@@ -157,6 +158,11 @@ export default function App() {
     if (filter === "all") return list;
     return list.filter((a) => a.status === filter);
   }, [actions, filter]);
+
+  const PER = 12;
+  const pageCount = Math.max(1, Math.ceil(rows.length / PER));
+  const safePage = Math.min(pageIdx, pageCount - 1);
+  const pageRows = rows.slice(safePage * PER, safePage * PER + PER);
 
   const latest = audit.find((x) => x.action !== "measure_recovery") || audit[0] || {};
   const extra = latest.extra || {};
@@ -333,7 +339,10 @@ export default function App() {
                     key={f}
                     type="button"
                     className={filter === f ? "chip on" : "chip"}
-                    onClick={() => setFilter(f)}
+                    onClick={() => {
+                      setFilter(f);
+                      setPageIdx(0);
+                    }}
                   >
                     {f === "pending_approval" ? "needs a person" : f === "blocked" ? "stopped" : f}
                   </button>
@@ -357,6 +366,24 @@ export default function App() {
                 </div>
               ))}
               {!rows.length && <p className="k">Nothing yet. Run a practice batch.</p>}
+              </div>
+              {rows.length > 0 && (
+                <div className="toolbar">
+                  <button type="button" disabled={safePage <= 0} onClick={() => setPageIdx(safePage - 1)}>
+                    Prev
+                  </button>
+                  <span className="k">
+                    Page {safePage + 1} / {pageCount} · {rows.length} rows
+                  </span>
+                  <button
+                    type="button"
+                    disabled={safePage >= pageCount - 1}
+                    onClick={() => setPageIdx(safePage + 1)}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
             </div>
 
             <aside className="glass detail">

@@ -45,15 +45,27 @@ def run_batch(n: int = 100):
         raise HTTPException(400, "n must be 1..500")
     specs = build_specs(n)
     results = []
+    errors = 0
     with httpx.Client() as client:
         for spec in specs:
-            results.append(post_event(client, spec))
+            try:
+                results.append(post_event(client, spec))
+            except Exception as exc:
+                errors += 1
+                results.append(
+                    {
+                        "ok": False,
+                        "error": str(exc)[:240],
+                        "ground_truth": spec["ground_truth"],
+                    }
+                )
     counts: dict[str, int] = {}
     for s in specs:
         counts[s["ground_truth"]] = counts.get(s["ground_truth"], 0) + 1
     return {
         "ok": True,
         "batch": len(results),
+        "errors": errors,
         "by_ground_truth": counts,
         "note": "Labels are evaluation harness ground truth, not live Razorpay.",
         "events": results,

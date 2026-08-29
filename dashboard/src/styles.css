@@ -138,7 +138,14 @@ button.primary {
 button:disabled { opacity: 0.5; cursor: wait; }
 .chip.on { border-color: #e8eef8; }
 
-.layout { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; }
+.layout { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 16px; align-items: start; }
+.ledger-list { max-height: min(68vh, 720px); overflow: auto; }
+aside.detail {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+}
 @media (max-width: 900px) {
   .layout, .impact { grid-template-columns: 1fr; }
   .nav, .wrap { padding-left: 18px; padding-right: 18px; }
