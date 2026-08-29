@@ -348,24 +348,25 @@ export default function App() {
                   </button>
                 ))}
               </div>
-              {rows.map((a) => (
-                <div
-                  key={a.id}
-                  className={sel?.id === a.id ? "row sel" : "row"}
-                  onClick={() => open(a)}
-                >
-                  <span className="k">#{a.id}</span>
-                  <div>
-                    <div>{titleFor(a)}</div>
-                    <div className="k">
-                      ₹{(a.amount_paise / 100).toLocaleString("en-IN")}
-                      {a.block_reason ? ` · ${GATES[a.block_reason] || a.block_reason}` : ""}
+              <div className="ledger-list">
+                {pageRows.map((a) => (
+                  <div
+                    key={a.id}
+                    className={sel?.id === a.id ? "row sel" : "row"}
+                    onClick={() => open(a)}
+                  >
+                    <span className="k">#{a.id}</span>
+                    <div>
+                      <div>{titleFor(a)}</div>
+                      <div className="k">
+                        ₹{(a.amount_paise / 100).toLocaleString("en-IN")}
+                        {a.block_reason ? ` · ${GATES[a.block_reason] || a.block_reason}` : ""}
+                      </div>
                     </div>
+                    <span className={`badge ${badgeClass(a.status)}`}>{badgeLabel(a.status)}</span>
                   </div>
-                  <span className={`badge ${badgeClass(a.status)}`}>{badgeLabel(a.status)}</span>
-                </div>
-              ))}
-              {!rows.length && <p className="k">Nothing yet. Run a practice batch.</p>}
+                ))}
+                {!rows.length && <p className="k">Nothing yet. Run a practice batch.</p>}
               </div>
               {rows.length > 0 && (
                 <div className="toolbar">
