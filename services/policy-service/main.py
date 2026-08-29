@@ -2,11 +2,13 @@ import os
 
 from fastapi import FastAPI
 from pydantic import BaseModel
+from reviva_shared.cors import add_cors
 from reviva_shared.gates import MemoryRedis
 from reviva_shared.health import service_health
 from reviva_shared.policy import decide
 
 app = FastAPI(title="reviva-policy")
+add_cors(app)
 
 _redis = MemoryRedis()
 try:

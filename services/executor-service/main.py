@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy.pool import StaticPool
 from sqlmodel import Session, SQLModel, create_engine, select
 
+from reviva_shared.cors import add_cors
+
 from reviva_shared.db_init import init_db
 from reviva_shared.gates import bump_attempt, mark_link, MemoryRedis
 from reviva_shared.health import service_health
@@ -31,6 +33,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="reviva-executor", lifespan=lifespan)
+add_cors(app)
 
 
 class ExecuteIn(BaseModel):

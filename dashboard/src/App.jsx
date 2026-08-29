@@ -148,11 +148,12 @@ export default function App() {
 
   const kill = async (on) => {
     await fetch(`/api/policy/ops/kill-switch?on=${on}`, { method: "POST" });
+    setFrozen(on);
     refresh();
   };
 
   const rows = useMemo(() => {
-    const list = [...actions].reverse();
+    const list = [...actions];
     if (filter === "all") return list;
     return list.filter((a) => a.status === filter);
   }, [actions, filter]);

@@ -57,7 +57,7 @@ EXECUTOR_URL = os.getenv("EXECUTOR_URL", "http://executor-service:8000")
 def run_pipeline(ev: PaymentEvent) -> dict:
     if not PIPELINE_ENABLED or ev.event_type != "payment.failed":
         return {}
-    with httpx.Client(timeout=20.0) as client:
+    with httpx.Client(timeout=60.0) as client:
         d = client.post(
             f"{DIAGNOSIS_URL}/diagnose",
             json={
@@ -106,7 +106,10 @@ async def lifespan(app: FastAPI):
     yield
 
 
+from reviva_shared.cors import add_cors
+
 app = FastAPI(title="reviva-ingest", lifespan=lifespan)
+add_cors(app)
 
 
 def get_session():

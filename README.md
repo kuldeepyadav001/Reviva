@@ -104,11 +104,7 @@ Open **http://localhost:8080/** → **Run labeled batch**.
 
 Webhook URL is **not** required for the demo. Simulator injects `payment.failed`.
 
-Ollama model (inside *this* compose project, not another app’s container):
-
-```bash
-docker compose exec ollama ollama pull qwen2.5:1.5b
-```
+`docker compose up --build` also runs **`ollama-pull`**, which downloads **qwen2.5:1.5b** into *this* stack (first time can take several minutes). Diagnosis is forced to `http://ollama:11434` even if `.env` still points at another machine.
 
 ---
 

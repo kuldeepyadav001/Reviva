@@ -2,12 +2,14 @@ import os
 
 from fastapi import FastAPI
 from pydantic import BaseModel
+from reviva_shared.cors import add_cors
 from reviva_shared.health import service_health
 from reviva_shared.human import source_text
 from reviva_shared.llm_classify import classify_llm
 from reviva_shared.rules import classify_rules
 
 app = FastAPI(title="reviva-diagnosis")
+add_cors(app)
 
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b")
